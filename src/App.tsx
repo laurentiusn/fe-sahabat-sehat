@@ -1,14 +1,34 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import Login from "@/pages/auth/Login";
+import LoginPage from "@/pages/auth/Login"; // Sesuaikan path
+import DashboardPasien from "@/pages/pasien/DashboardPasien"; // Import Dashboard Pasien
+// import AdminDashboard from "@/pages/admin/Dashboard"; // Nanti uncomment ini
+
+import ProtectedRoute from "@/components/ProtectedRoute"; // Import Satpam
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="/login" element={<Login />} />
+      {/* --- PUBLIC ROUTES (Bisa diakses siapa saja) --- */}
+      <Route path="/login" element={<LoginPage />} />
       
-      {/* Nanti tambah halaman Dashboard Admin di sini */}
-      {/* <Route path="/admin/dashboard" element={<AdminDashboard />} /> */}
+      {/* Redirect root ke login */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+
+      {/* --- AREA PASIEN (Hanya Role 'pasien') --- */}
+      <Route element={<ProtectedRoute allowedRoles={['pasien']} />}>
+          <Route path="/dashboard-pasien" element={<DashboardPasien />} />
+          {/* Route lain khusus pasien nanti ditaruh di sini */}
+          {/* <Route path="/obat" element={<JadwalObat />} /> */}
+      </Route>
+
+      {/* --- AREA ADMIN (Hanya Role 'admin') --- */}
+      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+          {/* <Route path="/admin/dashboard" element={<AdminDashboard />} /> */}
+          <Route path="/admin/dashboard" element={<div>Dashboard Admin (Protected)</div>} />
+      </Route>
+
+      {/* --- CATCH ALL (404) --- */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }
