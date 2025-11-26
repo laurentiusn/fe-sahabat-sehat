@@ -1,0 +1,28 @@
+import { cn } from "@/lib/utils"
+
+export function Logo({ className }: { className?: string }) {
+  return (
+    <svg 
+      viewBox="0 0 100 100" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
+      className={cn("w-10 h-10", className)} // Default size w-10 h-10, bisa di-override
+    >
+      {/* Lingkaran Putih */}
+      <circle cx="50" cy="50" r="50" fill="white"/>
+      
+      {/* Masking */}
+      <mask id="mask0_198_3942" style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x="5" y="5" width="90" height="90">
+        <rect x="5" y="5" width="90" height="90" fill="#D9D9D9"/>
+      </mask>
+      
+      {/* Garis Detak Jantung (Warna Biru #2563EB) */}
+      <g mask="url(#mask0_198_3942)">
+        <path 
+          d="M38.75 80C37.5625 80 36.5 79.6562 35.5625 78.9688C34.625 78.2812 33.9375 77.4063 33.5 76.3438L24.875 53.75H8.75V46.25H30.125L38.75 69.125L56 23.6562C56.4375 22.5938 57.125 21.7188 58.0625 21.0312C59 20.3438 60.0625 20 61.25 20C62.4375 20 63.5 20.3438 64.4375 21.0312C65.375 21.7188 66.0625 22.5938 66.5 23.6562L75.125 46.25H91.25V53.75H69.875L61.25 30.875L44 76.3438C43.5625 77.4063 42.875 78.2812 41.9375 78.9688C41 79.6562 39.9375 80 38.75 80Z" 
+          fill="#2563EB" 
+        />
+      </g>
+    </svg>
+  )
+}
