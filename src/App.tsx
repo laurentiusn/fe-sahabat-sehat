@@ -1,9 +1,11 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "@/pages/auth/Login"; // Sesuaikan path
-import DashboardPasien from "@/pages/pasien/DashboardPasien"; // Import Dashboard Pasien
-// import AdminDashboard from "@/pages/admin/Dashboard"; // Nanti uncomment ini
-
+import DashboardPasien from "@/pages/pasien/DashboardPasien";
+import MonitoringMandiri from "@/pages/pasien/MonitoringMandiri";
+import CatatanHarian from "@/pages/pasien/CatatanHarian";
 import ProtectedRoute from "@/components/ProtectedRoute"; // Import Satpam
+import ListObat from "./pages/pasien/ListObat";
+import TipsHidup from "./pages/pasien/TipsHidup";
 
 function App() {
   return (
@@ -17,6 +19,10 @@ function App() {
       {/* --- AREA PASIEN (Hanya Role 'pasien') --- */}
       <Route element={<ProtectedRoute allowedRoles={['pasien']} />}>
           <Route path="/dashboard-pasien" element={<DashboardPasien />} />
+          <Route path="/list-obat" element={<ListObat />} />
+          <Route path="/monitoring-mandiri" element={<MonitoringMandiri />} />
+          <Route path="/catatan-harian" element={<CatatanHarian />} />
+          <Route path="/tips-hidup" element={<TipsHidup />} />
           {/* Route lain khusus pasien nanti ditaruh di sini */}
           {/* <Route path="/obat" element={<JadwalObat />} /> */}
       </Route>

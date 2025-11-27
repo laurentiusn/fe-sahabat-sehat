@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useLocation } from "react-router-dom"
 import {
   IconDashboard,
   IconPill,
@@ -28,12 +29,12 @@ const navMain = [
   },
   {
     title: "List Obat",
-    url: "/obat-hari-ini",
+    url: "/list-obat",
     icon: IconPill,
   },
   {
     title: "Monitoring Mandiri",
-    url: "/monitor-td",
+    url: "/monitoring-mandiri",
     icon: IconActivity,
   },
   {
@@ -49,6 +50,7 @@ const navMain = [
 ]
 
 export function PasienSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const location = useLocation()
   return (
     <Sidebar
       collapsible="offcanvas"
@@ -87,29 +89,36 @@ export function PasienSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
       
       <SidebarContent>
         <SidebarMenu className="px-4 gap-2">
-          {navMain.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton
-                asChild
-                isActive={item.isActive}
-                tooltip={item.title}
-                size="lg" // Ukuran tombol sedikit lebih besar agar lega
-                className="
-                  text-sidebar-foreground
-                  transition-all duration-200 ease-in-out
-                  hover:bg-[var(--sidebar-accent)] 
-                  data-[active=true]:bg-[var(--sidebar-primary)] 
-                  data-[active=true]:font-semibold 
-                  data-[active=true]:shadow-md
-                "
-              >
-                <a href={item.url} className="flex gap-3 items-center">
-                  <item.icon className="h-5 w-5" />
-                  <span>{item.title}</span>
-                </a>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {navMain.map((item) => {
+            // 3. LOGIKA DINAMIS: Cek apakah URL browser sama dengan URL menu
+            const isActive = location.pathname === item.url
+
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive} // 4. Gunakan hasil cek di sini
+                  tooltip={item.title}
+                  size="lg"
+                  className="
+                    text-sidebar-foreground
+                    hover:bg-[var(--sidebar-accent)] 
+                    hover:text-sidebar-accent-foreground
+                    data-[active=true]:bg-[var(--sidebar-primary)] 
+                    data-[active=true]:text-sidebar-primary-foreground
+                    data-[active=true]:font-semibold 
+                    data-[active=true]:shadow-md
+                    transition-all duration-200 ease-in-out
+                  "
+                >
+                  <a href={item.url} className="flex gap-3 items-center">
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.title}</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )
+          })}
         </SidebarMenu>
       </SidebarContent>
       <SidebarRail />
