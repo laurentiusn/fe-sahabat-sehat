@@ -46,13 +46,16 @@ export function LoginForm({
         tanggal_lahir: formattedDate 
       })
 
-      const { token, user } = response.data.data
+      const { token, role, nama_lengkap: namaUser } = response.data.data
+
+      if (!token || !role) {
+        throw new Error("Token atau Role tidak ditemukan dalam respon server.")
+      }
 
       localStorage.setItem("token", token)
-      localStorage.setItem("role", user.role)
-      localStorage.setItem("user_nama", user.nama_lengkap)
-
-      if (user.role === "admin") {
+      localStorage.setItem("role", role)
+      localStorage.setItem("user_nama", namaUser)
+      if (role === "admin") {
         navigate("/admin/dashboard")
       } else {
         navigate("/dashboard-pasien")

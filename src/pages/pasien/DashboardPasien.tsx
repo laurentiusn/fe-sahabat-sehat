@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import api from "@/lib/axios"
 import { PasienSidebar } from "@/components/pasien-sidebar"
 import {
@@ -14,30 +15,58 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { IconActivity, IconDroplet, IconScale } from "@tabler/icons-react"
+import { 
+  ActivityIcon, 
+  DropletsIcon, 
+  ScaleIcon, 
+  UserCircle,
+  LogOut, 
+  UserIcon
+} from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
-// Interface untuk Tipe Data Response API
-interface DashboardData {
-  user: string
-  nama: string
-  nilaiTd: string | null
-  statusTd: string
-  nilaiGd: string | null
-  statusGd: string
-  nilaiImt: string | null
-  statusImt: string
-  indikator: Array<{
-    id: string
-    type: 'td' | 'gd' | 'imt'
-    status: string
-    range: any
-    color_hex: string
-  }>
+// --- TIPE DATA ---
+interface RangeTD { sys_min: number | null; sys_max: number | null; dia_min: number | null; dia_max: number | null; operator?: string; }
+interface RangeStandard { min: number | null; max: number | null; }
+interface IndikatorItem { id: string; type: 'td' | 'gd' | 'imt'; status: string; range: string; color_hex: string; }
+interface DashboardData { user: string; nama: string; nilaiTd: string; statusTd: string; nilaiGd: string; statusGd: string; nilaiImt: string; statusImt: string; indikator: IndikatorItem[]; }
+
+// --- HELPER FUNCTION ---
+const formatRange = (jsonString: string, type: string): string => {
+  try {
+    const range = JSON.parse(jsonString)
+    if (type === 'td') {
+      const r = range as RangeTD
+      if (r.sys_max && r.dia_max && !r.sys_min) return `< ${r.sys_max}/${r.dia_max} mmHg`
+      if (r.sys_min && r.sys_max) {
+        const diaPart = (r.dia_min && r.dia_max) ? ` / ${r.dia_min} - ${r.dia_max}` : ''
+        return `${r.sys_min} - ${r.sys_max}${diaPart} mmHg`
+      }
+      if (r.sys_min && !r.sys_max) return `> ${r.sys_min}/${r.dia_min} mmHg`
+      return "Range Khusus"
+    } else {
+      const r = range as RangeStandard
+      const unit = type === 'imt' ? 'kg/m²' : 'mg/dl'
+      if (r.min !== null && r.max !== null) return `${r.min} - ${r.max} ${unit}`
+      if (r.min !== null) return `> ${r.min} ${unit}`
+      if (r.max !== null) return `< ${r.max} ${unit}`
+    }
+    return "-"
+  } catch (e) { return "-" }
 }
 
 export default function DashboardPasien() {
+  const navigate = useNavigate()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const namaUser = localStorage.getItem("user_nama") || "Pasien"
 
   useEffect(() => {
     const fetchData = async () => {
@@ -53,98 +82,89 @@ export default function DashboardPasien() {
     fetchData()
   }, [])
 
-  // Loading State Sederhana
+  const handleLogout = async () => {
+    try { await api.post("/logout") } catch (e) { console.error(e) }
+    localStorage.clear()
+    navigate("/login", { replace: true })
+  }
+
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
-        <div className="text-muted-foreground animate-pulse">Memuat Data Dashboard...</div>
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-2">
+          <ActivityIcon className="h-8 w-8 animate-pulse text-blue-600" />
+          <span className="text-sm text-slate-500">Memuat data kesehatan...</span>
+        </div>
       </div>
     )
   }
 
-  // Mapping Data untuk Card Monitoring
-  const monitoringItems = [
-    {
-      title: "Tekanan Darah",
-      value: data?.nilaiTd || "-",
-      unit: "", // Unit sudah digabung di backend
-      status: data?.statusTd,
-      icon: IconActivity,
-      color: "text-blue-500",
-    },
-    {
-      title: "Gula Darah",
-      value: data?.nilaiGd || "-",
-      unit: "",
-      status: data?.statusGd,
-      icon: IconDroplet,
-      color: "text-red-500",
-    },
-    {
-      title: "Indeks Massa Tubuh",
-      value: data?.nilaiImt || "-",
-      unit: "",
-      status: data?.statusImt,
-      icon: IconScale,
-      color: "text-orange-500",
-    },
-  ]
-
   return (
     <SidebarProvider>
       <PasienSidebar />
-      <SidebarInset>
-        {/* Header Dashboard */}
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-white">
+      <SidebarInset className="bg-[#F8F9FC]">
+        
+        {/* HEADER */}
+        <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6 shadow-sm sticky top-0 z-10">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
-            <h1 className="text-base font-semibold">Dashboard Pasien</h1>
+            <h1 className="text-lg font-bold text-slate-800">Dashboard</h1>
           </div>
-          <div className="ml-auto text-sm font-medium text-slate-600">
-            Halo, {data?.nama}
+          
+          {/* AREA PROFIL (Pengganti tombol akun di sidebar) */}
+          <div className="flex items-center gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-3 hover:bg-slate-100 p-2 rounded-lg transition-colors outline-none">
+                  <span className="text-sm font-medium text-slate-600 hidden md:block">
+                    {data?.nama || namaUser}
+                  </span>
+                  <div className="h-9 w-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-600">
+                    <UserCircle className="h-6 w-6"/>
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem 
+                  onClick={() => navigate("/profile")} 
+                  className="cursor-pointer font-medium text-slate-700"
+                >
+                  <UserIcon className="mr-2 h-4 w-4 text-slate-500" />
+                  <span>Akun Saya</span>
+                </DropdownMenuItem>
+                
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Keluar</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
-        
-        {/* Konten Utama */}
-        <div className="flex flex-1 flex-col gap-6 p-4 md:p-6 bg-slate-50">
+
+        {/* KONTEN DASHBOARD */}
+        <div className="flex flex-1 flex-col gap-8 p-6 md:p-8">
           
-          {/* BAGIAN 1: MONITORING TERAKHIR */}
+          {/* Monitoring Terakhir */}
           <section>
-            <h2 className="text-lg font-bold mb-4 text-slate-800">Monitoring Terakhir</h2>
-            <div className="grid gap-4 md:grid-cols-3">
-              {monitoringItems.map((item, index) => (
-                <Card key={index} className="shadow-sm">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                      {item.title}
-                    </CardTitle>
-                    <item.icon className={`h-5 w-5 ${item.color}`} />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-slate-900">
-                        {item.value}
-                    </div>
-                    <div className="mt-3">
-                        <StatusBadge status={item.status} />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <h2 className="text-base font-bold text-slate-800 mb-4">Monitoring Terakhir</h2>
+            <div className="grid gap-6 md:grid-cols-3">
+              <MonitoringCard title="Tekanan Darah" value={data?.nilaiTd} unit="mmHg" status={data?.statusTd} icon={ActivityIcon} iconColor="text-blue-600" />
+              <MonitoringCard title="Gula Darah" value={data?.nilaiGd} unit="mg/dl" status={data?.statusGd} icon={DropletsIcon} iconColor="text-blue-600" />
+              <MonitoringCard title="Indeks Massa Tubuh" value={data?.nilaiImt} unit="kg/m²" status={data?.statusImt} icon={ScaleIcon} iconColor="text-blue-600" />
             </div>
           </section>
 
-          {/* BAGIAN 2: INDIKATOR KESEHATAN (REFERENSI) */}
+          {/* Indikator */}
           <section>
-             <h2 className="text-lg font-bold mb-4 text-slate-800">Indikator Kesehatan (Referensi)</h2>
-             <div className="grid gap-4 md:grid-cols-3">
-                {/* Card Indikator TD */}
-                <IndikatorList title="Tekanan Darah" type="td" items={data?.indikator} />
-                {/* Card Indikator GD */}
-                <IndikatorList title="Gula Darah" type="gd" items={data?.indikator} />
-                {/* Card Indikator IMT */}
-                <IndikatorList title="Indeks Massa Tubuh" type="imt" items={data?.indikator} />
-             </div>
+            <h2 className="text-base font-bold text-slate-800 mb-4">Indikator</h2>
+            <div className="grid gap-6 md:grid-cols-3">
+              <ReferenceList title="Tekanan Darah" icon={ActivityIcon} type="td" items={data?.indikator} />
+              <ReferenceList title="Gula Darah" icon={DropletsIcon} type="gd" items={data?.indikator} />
+              <ReferenceList title="Indeks Massa Tubuh" icon={ScaleIcon} type="imt" items={data?.indikator} />
+            </div>
           </section>
 
         </div>
@@ -153,80 +173,52 @@ export default function DashboardPasien() {
   )
 }
 
-// --- KOMPONEN KECIL (HELPER) ---
+// --- KOMPONEN CARD (Sama seperti sebelumnya) ---
+function MonitoringCard({ title, value, unit, status, icon: Icon, iconColor }: any) {
+  let badgeColor = "bg-slate-100 text-slate-600"
+  const s = status?.toLowerCase() || ""
+  if (s.includes("normal") || s.includes("normoweight")) badgeColor = "bg-green-100 text-green-700"
+  else if (s.includes("waspada") || s.includes("pre") || s.includes("over")) badgeColor = "bg-amber-100 text-amber-700"
+  else if (s.includes("tinggi") || s.includes("stadium") || s.includes("obes") || s.includes("under")) badgeColor = "bg-red-100 text-red-700"
 
-// 1. Badge Status Warna-Warni
-function StatusBadge({ status }: { status?: string }) {
-    if (!status || status === 'Belum ada data') {
-        return <Badge variant="outline" className="text-slate-500 border-slate-300">Belum ada data</Badge>
-    }
-    
-    let colorClass = "bg-slate-500 hover:bg-slate-600"
-    const lower = status.toLowerCase()
-
-    if (lower.includes('normal') || lower.includes('normoweight')) {
-        colorClass = "bg-emerald-500 hover:bg-emerald-600"
-    } else if (lower.includes('waspada') || lower.includes('pre') || lower.includes('overweight')) {
-        colorClass = "bg-amber-500 hover:bg-amber-600"
-    } else if (lower.includes('tinggi') || lower.includes('stadium') || lower.includes('obesity') || lower.includes('underweight')) {
-        colorClass = "bg-rose-500 hover:bg-rose-600"
-    }
-
-    return <Badge className={`${colorClass} text-white border-0 px-3 py-0.5`}>{status}</Badge>
+  return (
+    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow duration-200">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-blue-50 rounded-md"><Icon className={`h-5 w-5 ${iconColor}`} /></div>
+            <CardTitle className="text-sm font-semibold text-slate-700">{title}</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-4">
+        <div className="flex items-end justify-between">
+            <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-bold text-slate-900">{value || "--"}</span>
+                <span className="text-sm text-slate-500 font-medium">{unit}</span>
+            </div>
+            {status && status !== "Belum ada data" && <Badge className={`${badgeColor} border-0 px-3 py-1 rounded-md text-xs font-semibold shadow-none`}>{status}</Badge>}
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
-// 2. List Indikator dalam Card
-function IndikatorList({ title, type, items }: { title: string, type: string, items?: any[] }) {
-    const filtered = items?.filter(i => i.type === type) || []
-    
-    return (
-        <Card className="shadow-sm h-full">
-            <CardHeader className="pb-3 border-b bg-slate-50/50">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    {type === 'td' && <IconActivity className="h-4 w-4 text-blue-500" />}
-                    {type === 'gd' && <IconDroplet className="h-4 w-4 text-red-500" />}
-                    {type === 'imt' && <IconScale className="h-4 w-4 text-orange-500" />}
-                    {title}
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-                <div className="space-y-3">
-                    {filtered.map((item) => (
-                        <div key={item.id} className="flex justify-between items-center text-sm">
-                            <div className="flex items-center gap-2">
-                                {/* Dot Warna */}
-                                <div 
-                                    className="w-2.5 h-2.5 rounded-full" 
-                                    style={{ backgroundColor: item.color_hex }}
-                                />
-                                <span className="font-medium text-slate-700">
-                                    {item.status}
-                                </span>
-                            </div>
-                            <span className="text-muted-foreground text-xs font-mono bg-slate-100 px-2 py-0.5 rounded">
-                               {formatRange(type, item.range)}
-                            </span>
-                        </div>
-                    ))}
+function ReferenceList({ title, icon: Icon, type, items }: any) {
+  const filteredItems = items?.filter((item: any) => item.type === type) || []
+  return (
+    <Card className="border-0 shadow-sm h-full flex flex-col">
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-2"><Icon className="h-5 w-5 text-blue-600" /><CardTitle className="text-sm font-semibold text-slate-700">{title}</CardTitle></div>
+      </CardHeader>
+      <CardContent className="flex-1">
+        <div className="space-y-3">
+            {filteredItems.map((item: any) => (
+                <div key={item.id} className="flex items-center justify-between text-sm">
+                    <div className="px-3 py-1.5 rounded-md text-white text-xs font-medium min-w-[80px] text-center shadow-sm" style={{ backgroundColor: item.color_hex }}>{item.status}</div>
+                    <div className="text-right text-slate-600 font-medium text-xs sm:text-sm">{formatRange(item.range, item.type)}</div>
                 </div>
-            </CardContent>
-        </Card>
-    )
-}
-
-// 3. Formatter Range JSON ke String Readable
-function formatRange(type: string, range: any) {
-    if (type === 'td') {
-        const sys = range.sys_max ? `${range.sys_min || 0}-${range.sys_max}` : `≥ ${range.sys_min}`;
-        const dia = range.dia_max ? `${range.dia_min || 0}-${range.dia_max}` : `≥ ${range.dia_min}`;
-        // Jika format stage 2 (>=), simplekan
-        if (!range.sys_max) return `Sys ≥ ${range.sys_min} / Dia ≥ ${range.dia_min}`
-        return `${sys} / ${dia}`
-    } else {
-        // GD & IMT
-        if (range.min !== null && range.max !== null) return `${range.min} - ${range.max}`
-        if (range.min !== null) return `≥ ${range.min}`
-        if (range.max !== null) return `< ${range.max}`
-    }
-    return '-'
+            ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
 }

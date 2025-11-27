@@ -7,80 +7,112 @@ import {
   IconHeartHandshake,
 } from "@tabler/icons-react"
 
-import { NavMain } from "@/components/nav-main"
-import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
 } from "@/components/ui/sidebar"
+import { Logo } from "./ui/logo"
 
 // Data Menu Pasien
-const data = {
-  user: {
-    name: localStorage.getItem('user_nama') || "Pasien",
-    email: "user@prolanis.com",
-    avatar: "", // Bisa dikosongkan atau kasih placeholder
+const navMain = [
+  {
+    title: "Dashboard",
+    url: "/dashboard-pasien",
+    icon: IconDashboard,
+    isActive: true, // Menu ini akan menyala otomatis
   },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard-pasien",
-      icon: IconDashboard,
-    },
-    {
-      title: "List Obat",
-      url: "/obat-hari-ini", // Sesuaikan dengan route di App.tsx
-      icon: IconPill,
-    },
-    {
-      title: "Monitoring Mandiri",
-      url: "/monitor-td", // Sesuaikan
-      icon: IconActivity,
-    },
-    {
-      title: "Catatan Harian",
-      url: "/catatan-harian",
-      icon: IconNotebook,
-    },
-    {
-      title: "Tips Hidup Sehat",
-      url: "/tips-hidup",
-      icon: IconHeartHandshake,
-    },
-  ],
-}
+  {
+    title: "List Obat",
+    url: "/obat-hari-ini",
+    icon: IconPill,
+  },
+  {
+    title: "Monitoring Mandiri",
+    url: "/monitor-td",
+    icon: IconActivity,
+  },
+  {
+    title: "Catatan Harian",
+    url: "/catatan-harian",
+    icon: IconNotebook,
+  },
+  {
+    title: "Tips Hidup Sehat",
+    url: "/tips-hidup",
+    icon: IconHeartHandshake,
+  },
+]
 
 export function PasienSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
-      <SidebarHeader>
+    <Sidebar
+      collapsible="offcanvas"
+      // --- BAGIAN INI YANG MENGUBAH WARNA SIDEBAR ---
+      style={{
+        "--sidebar": "#1E3A8A",                 // FIXED: Gunakan '--sidebar', bukan '--sidebar-background'
+        "--sidebar-foreground": "#FFFFFF",      // Warna Teks Utama
+        "--sidebar-primary": "#3B82F6",         // Warna Menu Aktif (Biru Terang)
+        "--sidebar-primary-foreground": "#FFFFFF",
+        "--sidebar-accent": "#172554",          // Warna Hover (Biru Sangat Gelap)
+        "--sidebar-accent-foreground": "#FFFFFF",
+        "--sidebar-border": "#1E3A8A",          // Border kanan
+        "--sidebar-ring": "#3B82F6",
+      } as React.CSSProperties}
+      // --------------------------------------------
+      className="border-r-0" // Hapus garis batas kanan agar mulus
+      {...props}
+    >
+      <SidebarHeader className="mb-4 pt-6 pb-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <div className="flex items-center gap-2">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-                  <IconActivity className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Prolanis App</span>
-                  <span className="truncate text-xs">Pasien Panel</span>
-                </div>
+            <div className="flex items-center gap-3 px-2 transition-all">
+              {/* Logo Circle Putih agar kontras */}
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-md text-[#1E3A8A]">
+                <Logo className="h-7 w-7" />
               </div>
-            </SidebarMenuButton>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-bold text-lg tracking-wide text-white">
+                  Sahabat Sehat
+                </span>
+              </div>
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+      
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <SidebarMenu className="px-4 gap-2">
+          {navMain.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton
+                asChild
+                isActive={item.isActive}
+                tooltip={item.title}
+                size="lg" // Ukuran tombol sedikit lebih besar agar lega
+                className="
+                  text-sidebar-foreground
+                  transition-all duration-200 ease-in-out
+                  hover:bg-[var(--sidebar-accent)] 
+                  data-[active=true]:bg-[var(--sidebar-primary)] 
+                  data-[active=true]:font-semibold 
+                  data-[active=true]:shadow-md
+                "
+              >
+                <a href={item.url} className="flex gap-3 items-center">
+                  <item.icon className="h-5 w-5" />
+                  <span>{item.title}</span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={data.user} />
-      </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   )
 }
