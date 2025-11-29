@@ -2,6 +2,9 @@ import { useEffect, useState } from "react"
 import { format } from "date-fns"
 import { id as localeId } from "date-fns/locale"
 import api from "@/lib/axios"
+import Markdown from "react-markdown" // Library untuk format text (Bold, List, dll)
+
+// Komponen UI & Icon
 import { PasienSidebar } from "@/components/pasien-sidebar"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -16,7 +19,9 @@ import {
   UserCircle, 
   LogOut, 
   Calendar,
-  ArrowRight
+  ArrowRight,
+  X,        // Icon Close
+  ZoomIn    // Icon Zoom
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -53,6 +58,16 @@ interface TipsResponse {
   imt: IndicatorData
 }
 
+// --- HELPER WARNA STATUS ---
+const getStatusColor = (status?: string) => {
+  const s = status?.toLowerCase() || ""
+  if (s.includes("normal") || s.includes("normoweight")) return "bg-green-100 text-green-700 hover:bg-green-100"
+  if (s.includes("waspada") || s.includes("pre") || s.includes("over")) return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100"
+  if (s.includes("belum")) return "bg-slate-100 text-slate-600 hover:bg-slate-100"
+  return "bg-red-100 text-red-700 hover:bg-red-100"
+}
+
+// --- KOMPONEN UTAMA ---
 export default function TipsHidupSehat() {
   const navigate = useNavigate()
   const [data, setData] = useState<TipsResponse | null>(null)
@@ -127,6 +142,7 @@ export default function TipsHidupSehat() {
           </div>
         </header>
 
+        {/* KONTEN UTAMA */}
         <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-5xl mx-auto w-full">
           
           <div className="space-y-1">
@@ -135,7 +151,6 @@ export default function TipsHidupSehat() {
           </div>
 
           <div className="grid gap-6">
-            
             <TipsCard 
               title="Tekanan Darah"
               icon={Activity}
@@ -143,7 +158,6 @@ export default function TipsHidupSehat() {
               data={data?.td}
               linkTo="/monitoring-mandiri"
             />
-
             <TipsCard 
               title="Gula Darah"
               icon={Droplets}
@@ -151,7 +165,6 @@ export default function TipsHidupSehat() {
               data={data?.gd}
               linkTo="/monitoring-mandiri"
             />
-
             <TipsCard 
               title="Indeks Massa Tubuh"
               icon={Scale}
@@ -159,7 +172,6 @@ export default function TipsHidupSehat() {
               data={data?.imt}
               linkTo="/monitoring-mandiri"
             />
-
           </div>
         </div>
       </SidebarInset>
@@ -167,101 +179,141 @@ export default function TipsHidupSehat() {
   )
 }
 
-// --- HELPER WARNA STATUS (Dipindah ke luar agar bisa dipakai TipsCard) ---
-const getStatusColor = (status?: string) => {
-  const s = status?.toLowerCase() || ""
-  if (s.includes("normal") || s.includes("normoweight")) return "bg-green-100 text-green-700 hover:bg-green-100"
-  if (s.includes("waspada") || s.includes("pre") || s.includes("over")) return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100"
-  if (s.includes("belum")) return "bg-slate-100 text-slate-600 hover:bg-slate-100"
-  return "bg-red-100 text-red-700 hover:bg-red-100"
-}
-
-// --- SUB-KOMPONEN KARTU TIPS ---
-
+// --- SUB-KOMPONEN KARTU TIPS (Logic & Tampilan) ---
 function TipsCard({ title, icon: Icon, iconColor, data, linkTo }: any) {
   const navigate = useNavigate()
+  
+  // State untuk menangani gambar yang sedang di-zoom (Overlay)
+  const [zoomImage, setZoomImage] = useState<string | null>(null)
   
   const hasTips = data?.tips && !Array.isArray(data.tips)
   const tipsContent = hasTips ? (data.tips as TipsContent) : null
   const noData = !data?.nilai_terakhir
 
   return (
-    <Card className="border-0 shadow-sm overflow-hidden">
-      <CardHeader className="border-b bg-slate-50/50 pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 bg-white rounded-lg border shadow-sm`}>
-              <Icon className={`h-6 w-6 ${iconColor}`} />
+    <>
+      <Card className="border-0 shadow-sm overflow-hidden flex flex-col h-full">
+        <CardHeader className="border-b bg-slate-50/50 pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 bg-white rounded-lg border shadow-sm`}>
+                <Icon className={`h-6 w-6 ${iconColor}`} />
+              </div>
+              <div>
+                <CardTitle className="text-base font-bold text-slate-800">{title}</CardTitle>
+                {data?.tanggal_cek && (
+                  <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
+                    <Calendar className="h-3 w-3" />
+                    <span>Update: {format(new Date(data.tanggal_cek), "dd MMM yyyy, HH:mm", { locale: localeId })}</span>
+                  </div>
+                )}
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-base font-bold text-slate-800">{title}</CardTitle>
-              {data?.tanggal_cek && (
-                <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
-                  <Calendar className="h-3 w-3" />
-                  <span>Update: {format(new Date(data.tanggal_cek), "dd MMM yyyy, HH:mm", { locale: localeId })}</span>
+            
+            <div className="text-right">
+               <Badge className={`border-0 px-3 py-1 text-xs mb-1 ${getStatusColor(data?.status_terakhir)}`}>
+                 {data?.status_terakhir || "Belum ada data"}
+               </Badge>
+               <div className="font-bold text-slate-700 text-sm">
+                 {data?.nilai_terakhir || "-"}
+               </div>
+            </div>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="p-6">
+          {noData ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
+              <div className="bg-slate-100 p-3 rounded-full">
+                <Icon className="h-6 w-6 text-slate-400" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-slate-900 font-medium">Belum ada data pemantauan</p>
+                <p className="text-slate-500 text-sm max-w-md">
+                  Lakukan monitoring mandiri terlebih dahulu agar kami dapat memberikan saran yang tepat untuk Anda.
+                </p>
+              </div>
+              <Button variant="outline" onClick={() => navigate(linkTo)} className="mt-2 text-blue-600 border-blue-200 hover:bg-blue-50">
+                Input Data Sekarang <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          ) : hasTips ? (
+            <div className="space-y-6">
+              
+              {/* 1. GAMBAR (Ditaruh di Atas) */}
+              {tipsContent?.gambar_tips && tipsContent.gambar_tips.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {tipsContent.gambar_tips.map((img, idx) => (
+                    <div 
+                      key={img.id} 
+                      className="relative aspect-video rounded-lg overflow-hidden border bg-slate-100 group cursor-pointer shadow-sm hover:shadow-md transition-all"
+                      onClick={() => setZoomImage(img.url)}
+                      title="Klik untuk memperbesar"
+                    >
+                      <img 
+                        src={img.url} 
+                        alt={`Tips ${title} ${idx + 1}`} 
+                        className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "https://placehold.co/600x400/e2e8f0/94a3b8?text=Gagal+Muat+Gambar"
+                        }}
+                      />
+                      {/* Icon Zoom saat Hover */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                         <ZoomIn className="text-white opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 drop-shadow-md" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
-            </div>
-          </div>
-          
-          <div className="text-right">
-             {/* PENGGUNAAN getStatusColor DISINI */}
-             <Badge className={`border-0 px-3 py-1 text-xs mb-1 ${getStatusColor(data?.status_terakhir)}`}>
-                {data?.status_terakhir || "Belum ada data"}
-             </Badge>
-             <div className="font-bold text-slate-700 text-sm">
-                {data?.nilai_terakhir || "-"}
-             </div>
-          </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="p-6">
-        {noData ? (
-          <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
-            <div className="bg-slate-100 p-3 rounded-full">
-              <Icon className="h-6 w-6 text-slate-400" />
-            </div>
-            <div className="space-y-1">
-              <p className="text-slate-900 font-medium">Belum ada data pemantauan</p>
-              <p className="text-slate-500 text-sm max-w-md">
-                Lakukan monitoring mandiri terlebih dahulu agar kami dapat memberikan saran yang tepat untuk Anda.
-              </p>
-            </div>
-            <Button variant="outline" onClick={() => navigate(linkTo)} className="mt-2 text-blue-600 border-blue-200 hover:bg-blue-50">
-              Input Data Sekarang <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-        ) : hasTips ? (
-          <div className="space-y-6">
-            <div className="prose prose-sm max-w-none text-slate-600 leading-relaxed">
-              <p>{tipsContent?.konten}</p>
-            </div>
 
-            {tipsContent?.gambar_tips && tipsContent.gambar_tips.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                {tipsContent.gambar_tips.map((img, idx) => (
-                  <div key={img.id} className="relative aspect-video rounded-lg overflow-hidden border bg-slate-100 group">
-                    <img 
-                      src={img.url} 
-                      alt={`Tips ${title} ${idx + 1}`} 
-                      className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "https://placehold.co/600x400/e2e8f0/94a3b8?text=Gagal+Muat+Gambar"
-                      }}
-                    />
-                  </div>
-                ))}
+              {/* 2. KONTEN TEKS (Menggunakan Markdown) */}
+              {/* Tambahkan 'space-y-2' di className div pembungkus ini, bukan di Markdown */}
+              <div className="bg-slate-50/30 p-4 rounded-lg border border-slate-100 text-slate-600 text-sm leading-relaxed space-y-2">
+                <Markdown 
+                  components={{
+                    ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 my-2" {...props} />,
+                    ol: ({node, ...props}) => <ol className="list-decimal pl-5 space-y-1 my-2" {...props} />,
+                    li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                    strong: ({node, ...props}) => <span className="font-bold text-slate-800" {...props} />,
+                    p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                    a: ({node, ...props}) => <a className="text-blue-600 hover:underline" target="_blank" {...props} />,
+                  }}
+                >
+                  {tipsContent?.konten}
+                </Markdown>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-lg text-green-800">
-            <HeartHandshake className="h-5 w-5" />
-            <p className="text-sm">Kondisi Anda terpantau <b>Normal</b>. Pertahankan pola hidup sehat Anda!</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-lg text-green-800">
+              <HeartHandshake className="h-5 w-5" />
+              <p className="text-sm">Kondisi Anda terpantau <b>Normal</b>. Pertahankan pola hidup sehat Anda!</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 3. OVERLAY / LIGHTBOX (Fullscreen) */}
+      {zoomImage && (
+        <div 
+          className="fixed inset-0 z-[999] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setZoomImage(null)}
+        >
+          <button 
+            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors cursor-pointer z-[1000]"
+            onClick={() => setZoomImage(null)}
+          >
+            <X className="w-8 h-8" />
+          </button>
+          <img 
+            src={zoomImage} 
+            alt="Full Preview" 
+            className="max-w-full max-h-[90vh] object-contain rounded-md shadow-2xl scale-100 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()} 
+          />
+        </div>
+      )}
+    </>
   )
 }
