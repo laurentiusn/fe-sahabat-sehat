@@ -6,6 +6,11 @@ import CatatanHarian from "@/pages/pasien/CatatanHarian";
 import ProtectedRoute from "@/components/ProtectedRoute"; // Import Satpam
 import ListObat from "./pages/pasien/ListObat";
 import TipsHidup from "./pages/pasien/TipsHidup";
+import DetailPasien from "./pages/admin/DetailPasien";
+import DashboardAdmin from "./pages/admin/DashboardAdmin";
+import DetailMonitoringPasien from "./pages/admin/DetailMonitoringPasien";
+import FormIndikator from "./pages/admin/FormIndikator";
+import Indikator from "./pages/admin/Indikator";
 
 function App() {
   return (
@@ -30,7 +35,13 @@ function App() {
       {/* --- AREA ADMIN (Hanya Role 'admin') --- */}
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
           {/* <Route path="/admin/dashboard" element={<AdminDashboard />} /> */}
-          <Route path="/admin/dashboard" element={<div>Dashboard Admin (Protected)</div>} />
+          <Route path="/admin/dashboard" element={<DashboardAdmin />} />
+          <Route path="/admin/pasien/:id" element={<DetailPasien />} /> {/* Route Dinamis */}
+          <Route path="/admin/pasien/:id/riwayat/:type" element={<DetailMonitoringPasien />} />
+
+          <Route path="/admin/indikator" element={<Indikator />} />
+          <Route path="/admin/indikator/tambah" element={<FormIndikator />} />
+          <Route path="/admin/indikator/edit/:id" element={<FormIndikator />} />
       </Route>
 
       {/* --- CATCH ALL (404) --- */}

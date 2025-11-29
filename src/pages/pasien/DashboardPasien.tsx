@@ -20,14 +20,13 @@ import {
   DropletsIcon, 
   ScaleIcon, 
   UserCircle,
-  LogOut, 
-  UserIcon
+  LogOut,
+  UserIcon 
 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -112,11 +111,11 @@ export default function DashboardPasien() {
             <h1 className="text-lg font-bold text-slate-800">Dashboard</h1>
           </div>
           
-          {/* AREA PROFIL (Pengganti tombol akun di sidebar) */}
+          {/* AREA PROFIL */}
           <div className="flex items-center gap-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 hover:bg-slate-100 p-2 rounded-lg transition-colors outline-none">
+                <button className="flex items-center gap-3 hover:bg-slate-100 p-2 rounded-lg transition-colors outline-none cursor-pointer">
                   <span className="text-sm font-medium text-slate-600 hidden md:block">
                     {data?.nama || namaUser}
                   </span>
@@ -135,6 +134,7 @@ export default function DashboardPasien() {
                 </DropdownMenuItem>
                 
                 <DropdownMenuSeparator />
+                
                 <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Keluar</span>
@@ -151,9 +151,36 @@ export default function DashboardPasien() {
           <section>
             <h2 className="text-base font-bold text-slate-800 mb-4">Monitoring Terakhir</h2>
             <div className="grid gap-6 md:grid-cols-3">
-              <MonitoringCard title="Tekanan Darah" value={data?.nilaiTd} unit="mmHg" status={data?.statusTd} icon={ActivityIcon} iconColor="text-blue-600" />
-              <MonitoringCard title="Gula Darah" value={data?.nilaiGd} unit="mg/dl" status={data?.statusGd} icon={DropletsIcon} iconColor="text-blue-600" />
-              <MonitoringCard title="Indeks Massa Tubuh" value={data?.nilaiImt} unit="kg/m²" status={data?.statusImt} icon={ScaleIcon} iconColor="text-blue-600" />
+              <MonitoringCard 
+                title="Tekanan Darah" 
+                value={data?.nilaiTd} 
+                unit="mmHg" 
+                status={data?.statusTd} 
+                icon={ActivityIcon} 
+                iconColor="text-blue-600"
+                type="td" 
+                indikator={data?.indikator}
+              />
+              <MonitoringCard 
+                title="Gula Darah" 
+                value={data?.nilaiGd} 
+                unit="mg/dl" 
+                status={data?.statusGd} 
+                icon={DropletsIcon} 
+                iconColor="text-blue-600"
+                type="gd" 
+                indikator={data?.indikator}
+              />
+              <MonitoringCard 
+                title="Indeks Massa Tubuh" 
+                value={data?.nilaiImt} 
+                unit="kg/m²" 
+                status={data?.statusImt} 
+                icon={ScaleIcon} 
+                iconColor="text-blue-600"
+                type="imt" 
+                indikator={data?.indikator}
+              />
             </div>
           </section>
 
@@ -173,13 +200,21 @@ export default function DashboardPasien() {
   )
 }
 
-// --- KOMPONEN CARD (Sama seperti sebelumnya) ---
-function MonitoringCard({ title, value, unit, status, icon: Icon, iconColor }: any) {
-  let badgeColor = "bg-slate-100 text-slate-600"
-  const s = status?.toLowerCase() || ""
-  if (s.includes("normal") || s.includes("normoweight")) badgeColor = "bg-green-100 text-green-700"
-  else if (s.includes("waspada") || s.includes("pre") || s.includes("over")) badgeColor = "bg-amber-100 text-amber-700"
-  else if (s.includes("tinggi") || s.includes("stadium") || s.includes("obes") || s.includes("under")) badgeColor = "bg-red-100 text-red-700"
+// --- KOMPONEN CARD ---
+
+// [UPDATE] Menerima prop 'type' dan 'indikator' untuk mencari warna dinamis
+function MonitoringCard({ title, value, unit, status, icon: Icon, iconColor, type, indikator }: any) {
+  
+  // Logika Mencari Warna dari API
+  // 1. Cari item di 'indikator' yang type-nya sama DAN status-nya cocok (case insensitive)
+  const matchedItem = indikator?.find((item: IndikatorItem) => 
+    item.type === type && item.status.toLowerCase() === status?.toLowerCase()
+  );
+
+  // 2. Jika ketemu, pakai color_hex-nya. Jika tidak (misal "Belum ada data"), pakai default abu-abu.
+  const badgeStyle = matchedItem 
+    ? { backgroundColor: matchedItem.color_hex, color: 'white', border: 'none' } 
+    : { backgroundColor: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }; // Default Slate-100
 
   return (
     <Card className="border-0 shadow-sm hover:shadow-md transition-shadow duration-200">
@@ -195,7 +230,12 @@ function MonitoringCard({ title, value, unit, status, icon: Icon, iconColor }: a
                 <span className="text-3xl font-bold text-slate-900">{value || "--"}</span>
                 <span className="text-sm text-slate-500 font-medium">{unit}</span>
             </div>
-            {status && status !== "Belum ada data" && <Badge className={`${badgeColor} border-0 px-3 py-1 rounded-md text-xs font-semibold shadow-none`}>{status}</Badge>}
+            {status && status !== "Belum ada data" && (
+              // Terapkan style dinamis di sini
+              <Badge style={badgeStyle} className="px-3 py-1 rounded-md text-xs font-semibold shadow-none">
+                  {status}
+              </Badge>
+            )}
         </div>
       </CardContent>
     </Card>
@@ -213,6 +253,7 @@ function ReferenceList({ title, icon: Icon, type, items }: any) {
         <div className="space-y-3">
             {filteredItems.map((item: any) => (
                 <div key={item.id} className="flex items-center justify-between text-sm">
+                    {/* Warna Badge Indikator juga diambil langsung dari color_hex */}
                     <div className="px-3 py-1.5 rounded-md text-white text-xs font-medium min-w-[80px] text-center shadow-sm" style={{ backgroundColor: item.color_hex }}>{item.status}</div>
                     <div className="text-right text-slate-600 font-medium text-xs sm:text-sm">{formatRange(item.range, item.type)}</div>
                 </div>
