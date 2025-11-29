@@ -38,7 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { toast } from "sonner" // Pastikan sudah install sonner, atau ganti console.log
+import { toast } from "sonner"
 
 // --- TIPE DATA ---
 interface ObatDetail {
@@ -88,18 +88,27 @@ export default function ListObat() {
     
     setJadwal(prev => prev.map(item => {
       if (item.id === id) {
-        return { ...item, status: "sudah" } // Pindahkan ke status sudah
+        return { ...item, status: "sudah" } // Pindahkan ke status sudah di UI sementara
       }
       return item
     }))
 
     try {
-      await api.post(`/checklist-obat/${id}`)
+      // --- PERBAIKAN DI SINI ---
+      // Menggunakan PUT sesuai error Laravel: "The POST method is not supported... Supported methods: PUT"
+      // Dan mengirim body parameter status
+      await api.put(`/checklist-obat/${id}`, {
+        status: 'sudah'
+      })
+      
       toast.success("Obat berhasil diminum!")
+      
+      // Opsional: Refresh data dari server untuk memastikan sinkronisasi data aktual
+      // fetchData() 
     } catch (error) {
       console.error("Gagal checklist:", error)
       toast.error("Gagal update status obat")
-      setJadwal(oldJadwal) // Balikin data kalau error
+      setJadwal(oldJadwal) // Balikin data ke posisi awal kalau error
     }
   }
 
@@ -182,7 +191,7 @@ export default function ListObat() {
                     <TableHead className="w-[100px] pl-6">Waktu</TableHead>
                     <TableHead>Nama Obat</TableHead>
                     <TableHead>Dosis</TableHead>
-                    <TableHead className="text-right pr-6">Aksi</TableHead>
+                    <TableHead className="text-center w-[100px]">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -204,9 +213,9 @@ export default function ListObat() {
                         <TableCell className="text-slate-500">
                           {item.obat.dosis}
                         </TableCell>
-                        <TableCell className="text-right pr-6">
+                        <TableCell className="text-center">
                           <Checkbox 
-                            className="h-6 w-6 border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                            className="h-6 w-6 border-slate-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 cursor-pointer mx-auto"
                             onCheckedChange={() => handleCheck(item.id)}
                           />
                         </TableCell>
@@ -245,11 +254,11 @@ export default function ListObat() {
                         <TableCell className="text-slate-400">
                           {item.obat.dosis}
                         </TableCell>
-                        <TableCell className="text-right pr-6">
+                        <TableCell className="text-center">
                           <Checkbox 
                             checked={true} 
                             disabled 
-                            className="h-6 w-6 data-[state=checked]:bg-slate-400 data-[state=checked]:border-slate-400 cursor-not-allowed"
+                            className="h-6 w-6 data-[state=checked]:bg-slate-400 data-[state=checked]:border-slate-400 cursor-not-allowed mx-auto"
                           />
                         </TableCell>
                       </TableRow>

@@ -34,13 +34,33 @@ import {
 // --- TIPE DATA ---
 interface RangeTD { sys_min: number | null; sys_max: number | null; dia_min: number | null; dia_max: number | null; operator?: string; }
 interface RangeStandard { min: number | null; max: number | null; }
-interface IndikatorItem { id: string; type: 'td' | 'gd' | 'imt'; status: string; range: string; color_hex: string; }
-interface DashboardData { user: string; nama: string; nilaiTd: string; statusTd: string; nilaiGd: string; statusGd: string; nilaiImt: string; statusImt: string; indikator: IndikatorItem[]; }
+
+interface IndikatorItem { 
+  id: string; 
+  type: 'td' | 'gd' | 'imt'; 
+  status: string; 
+  range: RangeTD | RangeStandard; // PERBAIKAN: Bukan string lagi, tapi Object
+  color_hex: string; 
+}
+
+interface DashboardData { 
+  user: string; 
+  nama: string; 
+  nilaiTd: string; 
+  statusTd: string; 
+  nilaiGd: string; 
+  statusGd: string; 
+  nilaiImt: string; 
+  statusImt: string; 
+  indikator: IndikatorItem[]; 
+}
 
 // --- HELPER FUNCTION ---
-const formatRange = (jsonString: string, type: string): string => {
+// PERBAIKAN: Menerima object range langsung, tidak perlu JSON.parse
+const formatRange = (range: any, type: string): string => {
   try {
-    const range = JSON.parse(jsonString)
+    if (!range) return "-"
+
     if (type === 'td') {
       const r = range as RangeTD
       if (r.sys_max && r.dia_max && !r.sys_min) return `< ${r.sys_max}/${r.dia_max} mmHg`
@@ -202,19 +222,15 @@ export default function DashboardPasien() {
 
 // --- KOMPONEN CARD ---
 
-// [UPDATE] Menerima prop 'type' dan 'indikator' untuk mencari warna dinamis
 function MonitoringCard({ title, value, unit, status, icon: Icon, iconColor, type, indikator }: any) {
   
-  // Logika Mencari Warna dari API
-  // 1. Cari item di 'indikator' yang type-nya sama DAN status-nya cocok (case insensitive)
   const matchedItem = indikator?.find((item: IndikatorItem) => 
     item.type === type && item.status.toLowerCase() === status?.toLowerCase()
   );
 
-  // 2. Jika ketemu, pakai color_hex-nya. Jika tidak (misal "Belum ada data"), pakai default abu-abu.
   const badgeStyle = matchedItem 
     ? { backgroundColor: matchedItem.color_hex, color: 'white', border: 'none' } 
-    : { backgroundColor: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }; // Default Slate-100
+    : { backgroundColor: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' };
 
   return (
     <Card className="border-0 shadow-sm hover:shadow-md transition-shadow duration-200">
@@ -231,7 +247,6 @@ function MonitoringCard({ title, value, unit, status, icon: Icon, iconColor, typ
                 <span className="text-sm text-slate-500 font-medium">{unit}</span>
             </div>
             {status && status !== "Belum ada data" && (
-              // Terapkan style dinamis di sini
               <Badge style={badgeStyle} className="px-3 py-1 rounded-md text-xs font-semibold shadow-none">
                   {status}
               </Badge>
@@ -253,9 +268,11 @@ function ReferenceList({ title, icon: Icon, type, items }: any) {
         <div className="space-y-3">
             {filteredItems.map((item: any) => (
                 <div key={item.id} className="flex items-center justify-between text-sm">
-                    {/* Warna Badge Indikator juga diambil langsung dari color_hex */}
                     <div className="px-3 py-1.5 rounded-md text-white text-xs font-medium min-w-[80px] text-center shadow-sm" style={{ backgroundColor: item.color_hex }}>{item.status}</div>
-                    <div className="text-right text-slate-600 font-medium text-xs sm:text-sm">{formatRange(item.range, item.type)}</div>
+                    <div className="text-right text-slate-600 font-medium text-xs sm:text-sm">
+                        {/* Panggil formatRange tanpa JSON.parse */}
+                        {formatRange(item.range, item.type)}
+                    </div>
                 </div>
             ))}
         </div>

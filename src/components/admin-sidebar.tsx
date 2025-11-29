@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom" // 1. Import useLocation
 import {
   IconDashboard,
   IconChartBar,
-  IconPill,
+  IconHeartCheck
 } from "@tabler/icons-react"
 
 import {
@@ -31,8 +31,8 @@ const navMain = [
   }, 
   { 
     title: "Tips Hidup Sehat", 
-    url: "#", // Nanti diganti jika sudah ada rute tips
-    icon: IconPill 
+    url: "/admin/tips", // Nanti diganti jika sudah ada rute tips
+    icon: IconHeartCheck 
   },
 ]
 

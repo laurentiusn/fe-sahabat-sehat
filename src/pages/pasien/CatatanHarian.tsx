@@ -12,12 +12,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
+  NotebookIcon,
   Utensils, 
   Cookie, 
   Activity, 
   UserCircle, 
   LogOut, 
-  CalendarIcon,
+  Calendar as CalendarIcon,
   Plus,
   Loader2
 } from "lucide-react"
@@ -78,7 +79,6 @@ export default function CatatanHarian() {
   // --- FETCH DATA ---
   const fetchData = async () => {
     try {
-      // setLoading(true) // Optional: Jangan set loading true jika hanya refresh data ringan
       const response = await api.get("/catatan-harian")
       setData(response.data.data)
     } catch (error) {
@@ -94,15 +94,13 @@ export default function CatatanHarian() {
   }, [])
 
   // --- HANDLERS SUBMIT ---
-  
-  // 1. Tambah Makanan (Utama/Selingan)
   const handleAddMakanan = async (type: "utama" | "selingan") => {
     const nama = type === "utama" ? makananUtama : makananSelingan
     if (!nama) return toast.error("Nama makanan tidak boleh kosong")
 
     setLoadingSubmit(true)
     try {
-      await api.post("/makanan-harian/makanan", {
+      await api.post("/catatan-harian/makanan", {
         nama_makanan: nama,
         type: type,
         tanggal: todayDate
@@ -110,16 +108,16 @@ export default function CatatanHarian() {
       toast.success(`Berhasil menambah makanan ${type}`)
       if (type === "utama") setMakananUtama("")
       else setMakananSelingan("")
-      fetchData() // Refresh tabel
-    } catch (error) {
-      console.error(error)
-      toast.error("Gagal menyimpan data")
+      fetchData() 
+    } catch (error: any) {
+      console.error("Error tambah makanan:", error)
+      const msg = error.response?.data?.message || "Gagal menyimpan data"
+      toast.error(msg)
     } finally {
       setLoadingSubmit(false)
     }
   }
 
-  // 2. Tambah Aktivitas
   const handleAddAktivitas = async () => {
     if (!aktivitas.nama || !aktivitas.durasi) return toast.error("Lengkapi data aktivitas")
 
@@ -133,9 +131,10 @@ export default function CatatanHarian() {
       toast.success("Berhasil menambah aktivitas")
       setAktivitas({ nama: "", durasi: "" })
       fetchData()
-    } catch (error) {
-      console.error(error)
-      toast.error("Gagal menyimpan aktivitas")
+    } catch (error: any) {
+      console.error("Error tambah aktivitas:", error)
+      const msg = error.response?.data?.message || "Gagal menyimpan aktivitas"
+      toast.error(msg)
     } finally {
       setLoadingSubmit(false)
     }
@@ -147,10 +146,7 @@ export default function CatatanHarian() {
     navigate("/login", { replace: true })
   }
 
-  // Ambil statistik bulan ini (Asumsi index 0 adalah bulan ini dari API)
   const currentMonthName = format(new Date(), "MMMM yyyy", { locale: localeId })
-
-  // 2. Logika Baru: Jika API kosong, pakai default "0 menit"
   const displayStat = data?.statistik_bulanan?.[0] || { 
     bulan: currentMonthName, 
     total: "0 menit" 
@@ -161,13 +157,12 @@ export default function CatatanHarian() {
       <PasienSidebar />
       <SidebarInset className="bg-[#F8F9FC]">
         
-        {/* HEADER */}
         <header className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6 shadow-sm sticky top-0 z-10">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
             <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Utensils className="h-5 w-5" />
+              <NotebookIcon className="h-5 w-5 text-orange-500" />
               Catatan Harian
             </h1>
           </div>
@@ -195,10 +190,8 @@ export default function CatatanHarian() {
 
         <div className="flex flex-1 flex-col gap-8 p-6 md:p-8 max-w-7xl mx-auto w-full">
           
-          {/* === SECTION INPUT === */}
           <div className="grid gap-6 md:grid-cols-3">
             
-            {/* Input Makanan Utama */}
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base text-blue-700 flex items-center gap-2">
@@ -224,7 +217,6 @@ export default function CatatanHarian() {
               </CardContent>
             </Card>
 
-            {/* Input Makanan Selingan */}
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base text-blue-700 flex items-center gap-2">
@@ -250,7 +242,6 @@ export default function CatatanHarian() {
               </CardContent>
             </Card>
 
-            {/* Input Aktivitas Fisik */}
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base text-blue-700 flex items-center gap-2">
@@ -290,7 +281,6 @@ export default function CatatanHarian() {
 
           </div>
 
-          {/* === SECTION RIWAYAT === */}
           <Card className="border-0 shadow-sm">
             <CardHeader className="border-b bg-slate-50/50 pb-4 flex flex-row items-center justify-between">
               <div className="flex items-center gap-2 text-blue-700">
@@ -343,18 +333,20 @@ export default function CatatanHarian() {
                           </ul>
                         </TableCell>
 
-                        <TableCell className="py-4">
-                          <ul className="space-y-1 text-slate-600">
+                        {/* --- PERBAIKAN JARAK ADA DI SINI --- */}
+                        <TableCell className="py-4 pr-6">
+                          <ul className="space-y-2 text-slate-600">
                             {item.aktivitas_fisik.length > 0 ? (
                               item.aktivitas_fisik.map((a) => (
-                                <li key={a.id} className="flex justify-between text-sm border-b border-dashed border-slate-200 last:border-0 pb-1 last:pb-0">
-                                  <span>{a.nama}</span>
-                                  <span className="font-semibold text-blue-600">{a.durasi}</span>
+                                <li key={a.id} className="flex items-center justify-between text-sm border-b border-dashed border-slate-200 pb-1 last:border-0">
+                                  <span className="truncate pr-4">{a.nama}</span>
+                                  <span className="font-semibold text-blue-600 whitespace-nowrap">{a.durasi}</span>
                                 </li>
                               ))
                             ) : <span className="text-slate-400 text-sm italic">-</span>}
                           </ul>
                         </TableCell>
+                        
                       </TableRow>
                     ))
                   )}

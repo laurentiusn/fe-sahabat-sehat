@@ -11,6 +11,8 @@ import DashboardAdmin from "./pages/admin/DashboardAdmin";
 import DetailMonitoringPasien from "./pages/admin/DetailMonitoringPasien";
 import FormIndikator from "./pages/admin/FormIndikator";
 import Indikator from "./pages/admin/Indikator";
+import FormTips from "./pages/admin/FormTips";
+import Tips from "./pages/admin/Tips";
 
 function App() {
   return (
@@ -42,6 +44,9 @@ function App() {
           <Route path="/admin/indikator" element={<Indikator />} />
           <Route path="/admin/indikator/tambah" element={<FormIndikator />} />
           <Route path="/admin/indikator/edit/:id" element={<FormIndikator />} />
+
+          <Route path="/admin/tips" element={<Tips />} />
+          <Route path="/admin/tips/edit/:id" element={<FormTips />} />
       </Route>
 
       {/* --- CATCH ALL (404) --- */}

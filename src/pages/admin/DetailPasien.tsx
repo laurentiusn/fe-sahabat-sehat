@@ -9,7 +9,8 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Activity, Droplets, Scale, Trash2, Plus, Loader2, Calendar, CheckCircle2, XCircle } from "lucide-react"
+// Tambahkan import 'Square' untuk icon stop
+import { ArrowLeft, Activity, Droplets, Scale, Trash2, Plus, Loader2, Calendar, CheckCircle2, XCircle, CircleOff } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -89,8 +90,8 @@ export default function DetailPasien() {
     try {
       const [resPasien, resObat, resRiwayat] = await Promise.allSettled([
         api.get(`/pasien/${id}`),
-        api.post(`/daftar-obat`, { id_user: id }),
-        api.post(`/riwayat-obat`, { id_user: id })
+        api.get(`/daftar-obat`, { params: { id_user: id } }),
+        api.get(`/riwayat-obat`, { params: { id_user: id } })
       ])
 
       if (resPasien.status === 'fulfilled') {
@@ -152,12 +153,38 @@ export default function DetailPasien() {
     }
   }
 
+  // --- STOP OBAT (FITUR BARU) ---
+  const handleStopObat = async (idObat: string) => {
+    if(!confirm("Yakin ingin memberhentikan obat ini per hari ini?")) return
+    
+    // Format tanggal stop sesuai standar database (Y-m-d)
+    const tanggalStop = format(new Date(), "yyyy-MM-dd")
+    
+    try {
+      await api.post(`/obat/${idObat}/stop`, {
+        tanggal_stop: tanggalStop
+      })
+      
+      toast.success("Pengobatan berhasil diberhentikan")
+      
+      // Refresh Data List Obat
+      const resObat = await api.get(`/daftar-obat`, { params: { id_user: id } })
+      setObatList(resObat.data.data)
+      
+    } catch (error) {
+      console.error("Gagal stop obat:", error)
+      toast.error("Gagal memberhentikan obat")
+    }
+  }
+
+  // --- HAPUS OBAT ---
   const handleDeleteObat = async (idObat: string) => {
-    if(!confirm("Yakin ingin menghapus obat ini?")) return
+    if(!confirm("Yakin ingin menghapus data obat ini?")) return
     try {
       await api.delete(`/obat/${idObat}`)
       toast.success("Obat dihapus")
-      const resObat = await api.post(`/daftar-obat`, { id_user: id })
+      
+      const resObat = await api.get(`/daftar-obat`, { params: { id_user: id } })
       setObatList(resObat.data.data)
     } catch (error) {
       toast.error("Gagal menghapus obat")
@@ -187,6 +214,33 @@ export default function DetailPasien() {
   const { profil, monitoring_terakhir, catatan_harian } = data
   const monitoring = monitoring_terakhir || {}
   const catatan = catatan_harian || []
+
+  // --- LOGIKA HITUNG AKUMULASI (HEADER) ---
+  const hitungAkumulasi = () => {
+    if (!catatan || catatan.length === 0) return { total: 0, label: "" }
+    
+    const total = catatan.reduce((acc, curr) => {
+      const subTotal = curr.aktivitas_fisik.reduce((sAcc, sCurr) => {
+        const val = parseInt(sCurr.durasi.toString().replace(/\D/g, '')) || 0
+        return sAcc + val
+      }, 0)
+      return acc + subTotal
+    }, 0)
+
+    let label = format(new Date(), "MMMM yyyy", { locale: localeId }) 
+    if (catatan[0]?.tanggal) {
+      const parts = catatan[0].tanggal.split("-").map(p => p.trim())
+      if (parts.length === 3) {
+        const [d, m, y] = parts
+        const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d))
+        label = format(dateObj, "MMMM yyyy", { locale: localeId })
+      }
+    }
+
+    return { total, label }
+  }
+
+  const { total: totalDurasi, label: labelBulan } = hitungAkumulasi()
 
   return (
     <SidebarProvider>
@@ -233,7 +287,6 @@ export default function DetailPasien() {
             />
           </div>
 
-          {/* === TABS NAVIGASI === */}
           <Tabs defaultValue="obat" className="space-y-4">
             <TabsList className="bg-white p-1 border shadow-sm rounded-lg flex flex-wrap h-auto">
               <TabsTrigger value="obat" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">Manajemen Obat</TabsTrigger>
@@ -242,12 +295,11 @@ export default function DetailPasien() {
               <TabsTrigger value="profil" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">Data Diri</TabsTrigger>
             </TabsList>
 
-            {/* 1. TAB: MANAJEMEN OBAT (CRUD Rencana) */}
+            {/* 1. TAB: MANAJEMEN OBAT */}
             <TabsContent value="obat" className="space-y-6">
               
-              {/* Form Tambah */}
               <Card className="border-0 shadow-sm overflow-hidden">
-                <CardHeader className="bg-blue-50/50 border-b pb-4 pt-5">
+                <CardHeader className="border-b pb-4 pt-5">
                   <CardTitle className="text-base text-blue-800 flex items-center gap-2">
                     <Plus className="h-5 w-5" /> Tambah Rencana Pengobatan
                   </CardTitle>
@@ -278,7 +330,7 @@ export default function DetailPasien() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label>Durasi (Hari)</Label>
+                        <Label>Durasi Hari</Label>
                         <Input type="number" required value={formObat.jumlah_hari} onChange={e => setFormObat({...formObat, jumlah_hari: e.target.value})} />
                       </div>
                       <div className="space-y-2 md:col-span-2">
@@ -319,22 +371,48 @@ export default function DetailPasien() {
                           {obat.keterangan && <div className="text-xs text-slate-400 mt-1 italic">{obat.keterangan}</div>}
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteObat(obat.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 self-end sm:self-center">
-                        <Trash2 className="h-5 w-5" />
-                      </Button>
+                      
+                      {/* === TOMBOL AKSI: STOP & HAPUS === */}
+                      <div className="flex items-center gap-1 self-end sm:self-center">
+                        
+                        {/* Tombol Stop (Hanya muncul jika obat aktif) */}
+                        {obat.is_active && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleStopObat(obat.id)} 
+                            title="Stop / Berhentikan Pengobatan"
+                            className="text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                          >
+                            <CircleOff className="h-5 w-5 fill-current" />
+                          </Button>
+                        )}
+
+                        {/* Tombol Hapus */}
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDeleteObat(obat.id)} 
+                          title="Hapus Data Obat"
+                          className="text-red-400 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </Button>
+                      </div>
                     </div>
                   ))
                 )}
               </div>
             </TabsContent>
 
-            {/* 2. TAB: RIWAYAT OBAT (Log Harian) */}
+            {/* ... (TAB LAIN SAMA SEPERTI SEBELUMNYA) ... */}
             <TabsContent value="riwayat_obat">
-              <Card className="border-0 shadow-sm overflow-hidden">
-                <CardHeader className="bg-blue-50/50 border-b py-4 px-6">
+               {/* Gunakan kode Tab Riwayat Obat dari jawaban sebelumnya yang sudah fix format tanggal */}
+               <Card className="border-0 shadow-sm overflow-hidden">
+                <CardHeader className="border-b py-4 px-6">
                   <CardTitle className="text-base text-blue-800 font-semibold">Riwayat Konsumsi Harian</CardTitle>
                 </CardHeader>
-                <CardContent className="p-0"> {/* PENTING: p-0 agar tabel full width */}
+                <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
@@ -383,74 +461,82 @@ export default function DetailPasien() {
               </Card>
             </TabsContent>
 
-            {/* 3. TAB: RIWAYAT CATATAN HARIAN */}
             <TabsContent value="catatan">
+               {/* Gunakan kode Tab Catatan dari jawaban sebelumnya */}
                <Card className="border-0 shadow-sm overflow-hidden">
-                 <CardHeader className="bg-blue-50/50 border-b py-4 px-6">
-                    <CardTitle className="text-base text-blue-800 font-semibold">Riwayat Catatan Pasien</CardTitle>
-                 </CardHeader>
-                 <CardContent className="p-0"> {/* PENTING: p-0 */}
-                   <div className="overflow-x-auto">
-                     <Table>
-                       <TableHeader>
-                         <TableRow className="bg-slate-50 hover:bg-slate-50 border-b">
-                           <TableHead className="pl-6 h-10 w-[150px] font-semibold text-slate-700">Tanggal</TableHead>
-                           <TableHead className="h-10 font-semibold text-slate-700">Makanan Utama</TableHead>
-                           <TableHead className="h-10 font-semibold text-slate-700">Makanan Selingan</TableHead>
-                           <TableHead className="h-10 font-semibold text-slate-700">Aktivitas Fisik</TableHead>
-                         </TableRow>
-                       </TableHeader>
-                       <TableBody>
-                          {(!catatan || catatan.length === 0) ? (
-                            <TableRow>
-                              <TableCell colSpan={4} className="h-64 text-center">
-                                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
-                                    <div className="p-3 bg-slate-100 rounded-full">
-                                      <Calendar className="h-8 w-8 text-slate-400" />
-                                    </div>
-                                    <div>
-                                      <div className="font-medium text-slate-600">Tidak ada Catatan Harian</div>
-                                      <div className="text-xs text-slate-400">Pasien belum mengisi log harian.</div>
-                                    </div>
-                                 </div>
+                <CardHeader className="border-b py-4 px-6 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base text-blue-800 font-semibold">Riwayat Catatan Pasien</CardTitle>
+                  {catatan.length > 0 && (
+                    <div className="bg-blue-100 border border-blue-200 text-blue-800 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+                      {labelBulan}: {totalDurasi} menit
+                    </div>
+                  )}
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50 hover:bg-slate-50 border-b">
+                          <TableHead className="pl-6 h-10 w-[150px] font-semibold text-slate-700">Tanggal</TableHead>
+                          <TableHead className="h-10 font-semibold text-slate-700">Makanan Utama</TableHead>
+                          <TableHead className="h-10 font-semibold text-slate-700">Makanan Selingan</TableHead>
+                          <TableHead className="h-10 font-semibold text-slate-700">Aktivitas Fisik</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(!catatan || catatan.length === 0) ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="h-64 text-center">
+                              <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
+                                <div className="p-3 bg-slate-100 rounded-full">
+                                  <Calendar className="h-8 w-8 text-slate-400" />
+                                </div>
+                                <div>
+                                  <div className="font-medium text-slate-600">Tidak ada Catatan Harian</div>
+                                  <div className="text-xs text-slate-400">Pasien belum mengisi log harian.</div>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          catatan.map((item) => (
+                            <TableRow key={item.id_log_harian} className="hover:bg-slate-50 align-top border-b last:border-0">
+                              <TableCell className="pl-6 font-medium py-4 text-slate-700">{item.tanggal}</TableCell>
+                              <TableCell className="py-4">
+                                <ul className="list-disc pl-4 space-y-1 text-slate-600 text-sm">
+                                  {item.makanan_utama?.length > 0 ? item.makanan_utama.map(m => <li key={m.id}>{m.nama}</li>) : "-"}
+                                </ul>
+                              </TableCell>
+                              <TableCell className="py-4">
+                                <ul className="list-disc pl-4 space-y-1 text-slate-600 text-sm">
+                                  {item.makanan_selingan?.length > 0 ? item.makanan_selingan.map(m => <li key={m.id}>{m.nama}</li>) : "-"}
+                                </ul>
+                              </TableCell>
+                              <TableCell className="py-4 pr-6 w-[300px]">
+                                <ul className="space-y-1 text-slate-600 text-sm">
+                                  {item.aktivitas_fisik?.length > 0 ? item.aktivitas_fisik.map(a => (
+                                    <li key={a.id} className="flex items-center justify-between border-b border-dashed border-slate-200 pb-2 mb-1 last:border-0 last:pb-0 last:mb-0">
+                                      <span className="truncate pr-2">{a.nama}</span>
+                                      <span className="font-semibold text-blue-600 whitespace-nowrap text-xs">
+                                        {a.durasi}
+                                      </span>
+                                    </li>
+                                  )) : <span className="text-slate-400 italic">-</span>}
+                                </ul>
                               </TableCell>
                             </TableRow>
-                          ) : (
-                            catatan.map((item) => (
-                              <TableRow key={item.id_log_harian} className="hover:bg-slate-50 align-top border-b last:border-0">
-                                <TableCell className="pl-6 font-medium py-4 text-slate-700">{item.tanggal}</TableCell>
-                                <TableCell className="py-4">
-                                  <ul className="list-disc pl-4 space-y-1 text-slate-600 text-sm">
-                                    {item.makanan_utama?.length > 0 ? item.makanan_utama.map(m => <li key={m.id}>{m.nama}</li>) : "-"}
-                                  </ul>
-                                </TableCell>
-                                <TableCell className="py-4">
-                                  <ul className="list-disc pl-4 space-y-1 text-slate-600 text-sm">
-                                    {item.makanan_selingan?.length > 0 ? item.makanan_selingan.map(m => <li key={m.id}>{m.nama}</li>) : "-"}
-                                  </ul>
-                                </TableCell>
-                                <TableCell className="py-4">
-                                  <ul className="space-y-1 text-slate-600 text-sm">
-                                    {item.aktivitas_fisik?.length > 0 ? item.aktivitas_fisik.map(a => (
-                                      <li key={a.id} className="flex justify-between border-b border-dashed border-slate-200 pb-1 mb-1 last:border-0 last:pb-0 last:mb-0">
-                                        <span>{a.nama}</span> <span className="font-semibold text-blue-600">{a.durasi}</span>
-                                      </li>
-                                    )) : "-"}
-                                  </ul>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                       </TableBody>
-                     </Table>
-                   </div>
-                 </CardContent>
-               </Card>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
-            {/* 4. TAB: PROFIL */}
             <TabsContent value="profil">
-              <Card className="border-0 shadow-sm">
+               {/* Sama seperti sebelumnya */}
+               <Card className="border-0 shadow-sm">
                 <CardHeader><CardTitle className="text-base text-blue-800">Informasi Pribadi</CardTitle></CardHeader>
                 <CardContent className="grid md:grid-cols-2 gap-x-12 gap-y-6">
                   <DetailRow label="Nama Lengkap" value={profil?.nama_lengkap} />

@@ -5,12 +5,11 @@ import { toast } from "sonner"
 import { AdminSidebar } from "@/components/admin-sidebar"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Edit, Trash2, Loader2, UserCircle, LogOut } from "lucide-react"
+import { Plus, Edit, Trash2, Loader2, UserCircle, LogOut } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,19 +27,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-// --- TIPE DATA ---
 interface IndikatorItem {
   id: string
   type: 'td' | 'gd' | 'imt'
   status: string
-  color_hex?: string // Optional jika ada di response
+  color_hex?: string 
 }
 
 export default function Indikator() {
   const navigate = useNavigate()
   const [list, setList] = useState<IndikatorItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState("")
   
   // State Delete
   const [openDelete, setOpenDelete] = useState(false)
@@ -51,7 +48,7 @@ export default function Indikator() {
     setLoading(true)
     try {
       const response = await api.get("/indikator")
-      setList(response.data.data)
+      setList(response.data.data || [])
     } catch (error) {
       toast.error("Gagal memuat data indikator")
     } finally {
@@ -79,15 +76,13 @@ export default function Indikator() {
   }
 
   const confirmDelete = (id: string) => {
+    if (!id) {
+      toast.error("ID Indikator tidak valid")
+      return
+    }
     setDeleteId(id)
     setOpenDelete(true)
   }
-
-  // Filter Search
-  const filteredList = list.filter(item => 
-    item.status.toLowerCase().includes(search.toLowerCase()) || 
-    getTypeLabel(item.type).toLowerCase().includes(search.toLowerCase())
-  )
 
   const handleLogout = async () => {
     try { await api.post("/logout") } catch (e) { console.error(e) }
@@ -129,16 +124,8 @@ export default function Indikator() {
 
         <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-7xl mx-auto w-full">
           <Card className="border-0 shadow-sm">
-            <CardHeader className="pb-4 flex flex-row items-center justify-between">
-              <div className="flex-1 max-w-sm relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                <Input 
-                  placeholder="Cari Nama Indikator..." 
-                  className="pl-10 bg-slate-50"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
+            {/* HEADER TANPA SEARCH, TOMBOL DI KANAN */}
+            <CardHeader className="pb-4 flex flex-row items-center justify-end">
               <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => navigate("/admin/indikator/tambah")}>
                 <Plus className="mr-2 h-4 w-4" /> Tambah Indikator
               </Button>
@@ -157,13 +144,16 @@ export default function Indikator() {
                   <TableBody>
                     {loading ? (
                       <TableRow><TableCell colSpan={4} className="text-center py-10">Memuat data...</TableCell></TableRow>
-                    ) : filteredList.length === 0 ? (
+                    ) : list.length === 0 ? (
                       <TableRow><TableCell colSpan={4} className="text-center py-10 text-muted-foreground">Tidak ada data.</TableCell></TableRow>
                     ) : (
-                      filteredList.map((item, idx) => (
-                        <TableRow key={item.id} className="hover:bg-blue-50/50">
+                      list.map((item, idx) => (
+                        <TableRow key={item.id || idx} className="hover:bg-blue-50/50">
                           <TableCell className="text-center font-medium text-slate-600">{idx + 1}</TableCell>
-                          <TableCell className="font-semibold text-slate-800">{item.status}</TableCell>
+                          <TableCell className="font-semibold text-slate-800">
+                            {item.status}
+                            {!item.id && <span className="text-red-500 text-xs ml-2">(ID Missing)</span>}
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="bg-white">{getTypeLabel(item.type)}</Badge>
                           </TableCell>
@@ -173,7 +163,10 @@ export default function Indikator() {
                                 variant="outline" 
                                 size="sm" 
                                 className="h-8 w-8 p-0 text-blue-600 border-blue-200 hover:bg-blue-50"
-                                onClick={() => navigate(`/admin/indikator/edit/${item.id}`)}
+                                onClick={() => {
+                                  if(item.id) navigate(`/admin/indikator/edit/${item.id}`)
+                                  else toast.error("ID Data tidak valid")
+                                }}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -181,7 +174,7 @@ export default function Indikator() {
                                 variant="outline" 
                                 size="sm" 
                                 className="h-8 w-8 p-0 text-red-600 border-red-200 hover:bg-red-50"
-                                onClick={() => confirmDelete(item.id)}
+                                onClick={() => item.id && confirmDelete(item.id)}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

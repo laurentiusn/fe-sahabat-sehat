@@ -146,11 +146,31 @@ export default function MonitoringMandiri() {
     navigate("/login", { replace: true })
   }
 
-  // Helper Warna Status
+  // Helper Warna Status (Updated)
   const getStatusColor = (status: string) => {
     const s = status?.toLowerCase() || ""
-    if (s.includes("normal")) return "bg-green-600 hover:bg-green-700"
-    if (s.includes("waspada") || s.includes("pre") || s.includes("over")) return "bg-yellow-500 hover:bg-yellow-600"
+    
+    // KONDISI HIJAU (Baik/Normal/Ideal)
+    if (
+      s.includes("normal") || 
+      s.includes("normoweight") || // <--- Tambahkan ini
+      s.includes("ideal")
+    ) {
+      return "bg-green-600 hover:bg-green-700"
+    }
+
+    // KONDISI KUNING (Peringatan/Sedang)
+    if (
+      s.includes("waspada") || 
+      s.includes("pre") || 
+      s.includes("overweight") || // <--- Tambahkan ini
+      s.includes("berisiko")
+    ) {
+      return "bg-yellow-500 hover:bg-yellow-600"
+    }
+
+    // KONDISI MERAH (Bahaya/Buruk)
+    // Mencakup: Tinggi, Bahaya, Obesity, Underweight, Stadium 1/2/3
     return "bg-red-600 hover:bg-red-700"
   }
 
