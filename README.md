@@ -1,73 +1,52 @@
-# React + TypeScript + Vite
+# Sahabat Sehat (Front-End)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Project ini dibangun menggunakan teknologi modern berikut:
 
-Currently, two official plugins are available:
+- **Core:** [React 19](https://react.dev/) + [Vite](https://vitejs.dev/)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/)
+- **UI Components:** [Shadcn UI](https://ui.shadcn.com/) (Radix UI based)
+- **Icons:** [Lucide React](https://lucide.dev/) & [Tabler Icons](https://tabler.io/)
+- **Routing:** [React Router DOM v7](https://reactrouter.com/)
+- **State Management / Data Fetching:** [TanStack Query (React Query)](https://tanstack.com/query/latest)
+- **HTTP Client:** [Axios](https://axios-http.com/)
+- **Form Handling:** [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/)
+- **Charts:** [Recharts](https://recharts.org/)
+- **Date Utility:** [Date-fns](https://date-fns.org/)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## React Compiler
+## 🚀 Cara Setup Project (Installation)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Ikuti langkah-langkah berikut untuk menjalankan project ini di komputer lokal (localhost).
 
-## Expanding the ESLint configuration
+### 1. Clone Repository
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+```bash
+git clone https://github.com/laurentiusn/fe-sahabat-sehat.git
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+cd fe-sahabat-sehat
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2. Install Dependencies
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+npm install
+```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 3. Konfigurasi Environment
+
+```bash
+cp .env.example .env
+```
+
+Buka `.env` dan masukkan **Link API**
+
+```bash
+VITE_API_BASE_URL=https://link.domain/api
+```
+
+### 4. Run Development Server
+
+```bash
+npm run dev
 ```
