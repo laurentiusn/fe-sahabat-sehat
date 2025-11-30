@@ -19,7 +19,6 @@ import {
   UserCircle, 
   LogOut, 
   ArrowLeft,
-  ChevronRight,
   Loader2
 } from "lucide-react"
 import {
