@@ -140,10 +140,14 @@ export default function DashboardAdmin() {
   }
 
   // Filter Search
-  const filteredList = pasienList.filter(p => 
-    p.nama_lengkap.toLowerCase().includes(search.toLowerCase()) || 
-    p.nik.includes(search)
-  )
+  const filteredList = pasienList.filter(p => {
+    // Pengaman: Jika data null/undefined, ubah jadi string kosong "" agar tidak error
+    const nama = (p.nama_lengkap || "").toLowerCase();
+    const keyword = search.toLowerCase();
+
+    // Hanya cek nama, abaikan NIK
+    return nama.includes(keyword);
+  })
 
   return (
     <SidebarProvider>
