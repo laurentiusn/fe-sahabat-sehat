@@ -89,7 +89,7 @@ export default function FormIndikator() {
 
     try {
       if (isEdit) {
-        await api.post(`/indikator/${id}`, payload)
+        await api.put(`/indikator/${id}`, payload)
         toast.success("Indikator berhasil diperbarui")
       } else {
         await api.post("/indikator", payload)

@@ -38,7 +38,6 @@ interface HistoryItem {
   id: string
   tanggal: string
   status: string
-  // Field dinamis
   sistolik?: number
   diastolik?: number
   gula_darah?: string
@@ -55,12 +54,15 @@ interface MonitorData {
 export default function MonitoringMandiri() {
   const navigate = useNavigate()
   const namaUser = localStorage.getItem("user_nama") || "Pasien"
-  const [view, setView] = useState<ViewType>('menu') // State untuk navigasi internal
+  const [view, setView] = useState<ViewType>('menu')
   
-  // State Data
+  // State Data Monitoring
   const [data, setData] = useState<MonitorData>({ latest: null, history: [] })
   const [loading, setLoading] = useState(false)
   
+  // State Warna Dinamis
+  const [colorMap, setColorMap] = useState<Record<string, string>>({})
+
   // State Form Input
   const [formData, setFormData] = useState({
     sistolik: "",
@@ -70,7 +72,37 @@ export default function MonitoringMandiri() {
     massa_badan: ""
   })
 
-  // --- FETCH DATA ---
+  // --- 1. FETCH WARNA INDIKATOR (MASTER DATA) ---
+  useEffect(() => {
+    const fetchColors = async () => {
+      try {
+        // Menggunakan endpoint indikator untuk mendapatkan master warna
+        const res = await api.get("/indikator")
+        const list = res.data.data || []
+        
+        // Buat mapping: "nama status (lowercase)" -> "hex code"
+        const mapping: Record<string, string> = {}
+        
+        list.forEach((item: any) => {
+          // Handle struktur data: 
+          // Jika item.indikator ada (sesuai JSON yang Anda berikan), ambil dari situ
+          // Jika tidak, ambil langsung dari root item (sesuai struktur Admin Indikator)
+          const data = item.indikator || item 
+          
+          if (data.status && data.color_hex) {
+            mapping[data.status.toLowerCase()] = data.color_hex
+          }
+        })
+        
+        setColorMap(mapping)
+      } catch (error) {
+        console.error("Gagal memuat warna indikator:", error)
+      }
+    }
+    fetchColors()
+  }, [])
+
+  // --- FETCH DATA MONITORING ---
   const fetchData = async (type: ViewType) => {
     if (type === 'menu') return
     
@@ -84,7 +116,6 @@ export default function MonitoringMandiri() {
       const res = await api.get(endpoint)
       const d = res.data.data
 
-      // Normalisasi Data agar seragam strukturnya
       if (type === 'td') {
         setData({ latest: d.latestMonitorTd, history: d.historyTd })
       } else if (type === 'gd') {
@@ -100,11 +131,10 @@ export default function MonitoringMandiri() {
     }
   }
 
-  // Effect saat view berubah
   useEffect(() => {
     if (view !== 'menu') {
       fetchData(view)
-      setFormData({ sistolik: "", diastolik: "", gula_darah: "", tinggi_badan: "", massa_badan: "" }) // Reset form
+      setFormData({ sistolik: "", diastolik: "", gula_darah: "", tinggi_badan: "", massa_badan: "" })
     }
   }, [view])
 
@@ -130,7 +160,7 @@ export default function MonitoringMandiri() {
 
       await api.post(endpoint, payload)
       toast.success("Data berhasil disimpan!")
-      fetchData(view) // Refresh data
+      fetchData(view)
     } catch (error) {
       console.error("Gagal simpan", error)
       toast.error("Gagal menyimpan data")
@@ -145,32 +175,26 @@ export default function MonitoringMandiri() {
     navigate("/login", { replace: true })
   }
 
-  // Helper Warna Status (Updated)
-  const getStatusColor = (status: string) => {
+  // --- 2. HELPER WARNA STATUS DINAMIS ---
+  // Mengembalikan object style, bukan nama class
+  const getBadgeStyle = (status: string) => {
     const s = status?.toLowerCase() || ""
+    const hex = colorMap[s]
     
-    // KONDISI HIJAU (Baik/Normal/Ideal)
-    if (
-      s.includes("normal") || 
-      s.includes("normoweight") || // <--- Tambahkan ini
-      s.includes("ideal")
-    ) {
-      return "bg-green-600 hover:bg-green-700"
+    if (hex) {
+      return {
+        backgroundColor: hex,
+        color: "#ffffff", // Asumsi teks putih agar kontras
+        borderColor: hex
+      }
     }
 
-    // KONDISI KUNING (Peringatan/Sedang)
-    if (
-      s.includes("waspada") || 
-      s.includes("pre") || 
-      s.includes("overweight") || // <--- Tambahkan ini
-      s.includes("berisiko")
-    ) {
-      return "bg-yellow-500 hover:bg-yellow-600"
+    // Fallback jika warna belum terload / status tidak ada di master
+    return {
+      backgroundColor: "#e2e8f0", // Slate-200
+      color: "#475569",           // Slate-600
+      borderColor: "#cbd5e1"
     }
-
-    // KONDISI MERAH (Bahaya/Buruk)
-    // Mencakup: Tinggi, Bahaya, Obesity, Underweight, Stadium 1/2/3
-    return "bg-red-600 hover:bg-red-700"
   }
 
   return (
@@ -184,7 +208,6 @@ export default function MonitoringMandiri() {
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
             
-            {/* Navigasi Judul */}
             {view === 'menu' ? (
               <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <ActivityIcon className="h-5 w-5" />
@@ -286,17 +309,23 @@ export default function MonitoringMandiri() {
                           {view === 'td' ? 'mmHg' : view === 'gd' ? 'mg/dl' : 'kg/m²'}
                         </span>
                       </div>
+                      
+                      {/* --- UPDATE: Badge Menggunakan Dynamic Style --- */}
                       {data.latest?.status && (
-                        <Badge className={`${getStatusColor(data.latest.status)} border-0 px-3 py-1 text-xs`}>
+                        <Badge 
+                          className="border px-3 py-1 text-xs shadow-sm"
+                          style={getBadgeStyle(data.latest.status)}
+                        >
                           {data.latest.status}
                         </Badge>
                       )}
+                      
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* 2. FORM INPUT */}
+              {/* 2. FORM INPUT (Sama seperti sebelumnya) */}
               <Card className="border-0 shadow-sm">
                 <CardHeader className="border-b bg-slate-50/50 pb-4">
                   <CardTitle className="text-base text-blue-700">
@@ -425,8 +454,14 @@ export default function MonitoringMandiri() {
                               </>
                             )}
 
+                            {/* --- UPDATE: Badge Tabel Menggunakan Dynamic Style --- */}
                             <TableCell className="text-right pr-6">
-                              <Badge className={`${getStatusColor(item.status)} border-0`}>{item.status}</Badge>
+                              <Badge 
+                                className="border px-2 py-0.5" 
+                                style={getBadgeStyle(item.status)}
+                              >
+                                {item.status}
+                              </Badge>
                             </TableCell>
                           </TableRow>
                         ))
@@ -445,7 +480,6 @@ export default function MonitoringMandiri() {
   )
 }
 
-// Komponen Menu Card (Kotak Putih Besar di Halaman Depan)
 function MenuCard({ title, icon: Icon, iconColor, onClick }: any) {
   return (
     <div 
