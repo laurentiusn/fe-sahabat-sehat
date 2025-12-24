@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { UserPlus, Search, UserCircle, LogOut, Loader2, Trash2 } from "lucide-react" // Tambah Trash2
+// UPDATE: Tambah icon ChevronLeft dan ChevronRight
+import { UserPlus, Search, UserCircle, LogOut, Loader2, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,9 +41,24 @@ interface PasienItem {
   imt_terakhir: string
 }
 
+// UPDATE: Interface untuk Metadata Pagination dari Backend
+interface PaginationMeta {
+  current_page: number
+  last_page: number
+  from: number
+  to: number
+  total: number
+  per_page: number
+}
+
 export default function DashboardAdmin() {
   const navigate = useNavigate()
+  
+  // UPDATE: State management
   const [pasienList, setPasienList] = useState<PasienItem[]>([])
+  const [meta, setMeta] = useState<PaginationMeta | null>(null) // Simpan meta pagination
+  const [page, setPage] = useState(1) // Halaman aktif
+  
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   
@@ -50,7 +66,7 @@ export default function DashboardAdmin() {
   const [openDialog, setOpenDialog] = useState(false)
   const [loadingSubmit, setLoadingSubmit] = useState(false)
   
-  // State Delete Pasien (BARU)
+  // State Delete Pasien
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [loadingDelete, setLoadingDelete] = useState(false)
@@ -65,12 +81,22 @@ export default function DashboardAdmin() {
     tempat_lahir: ""
   })
 
-  // --- FETCH DATA ---
-  const fetchData = async () => {
+  // --- FETCH DATA (UPDATE) ---
+  // Menerima parameter page dan search query
+  const fetchData = async (pageNum = 1, searchQuery = "") => {
     try {
       setLoading(true)
-      const response = await api.get("/dashboard-admin")
+      // Kirim params ke backend
+      const response = await api.get("/dashboard-admin", {
+        params: {
+            page: pageNum,
+            search: searchQuery
+        }
+      })
+      
       setPasienList(response.data.data)
+      setMeta(response.data.meta) // Simpan meta pagination
+      
     } catch (error) {
       console.error("Gagal ambil data pasien", error)
       toast.error("Gagal memuat data pasien")
@@ -79,9 +105,21 @@ export default function DashboardAdmin() {
     }
   }
 
+  // Effect: Jalan saat komponen mount atau saat page/search berubah
+  // UPDATE: Kita gunakan debounce (delay) sederhana untuk search agar tidak request setiap ketik
   useEffect(() => {
-    fetchData()
-  }, [])
+    const delayDebounceFn = setTimeout(() => {
+        fetchData(page, search)
+    }, 500) // Delay 500ms agar user selesai mengetik dulu
+
+    return () => clearTimeout(delayDebounceFn)
+  }, [page, search]) 
+
+  // Handle saat user mengetik di search bar
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearch(e.target.value)
+      setPage(1) // PENTING: Reset ke halaman 1 jika user mencari data baru
+  }
 
   // --- SUBMIT PASIEN BARU ---
   const handleCreatePasien = async (e: React.FormEvent) => {
@@ -95,13 +133,12 @@ export default function DashboardAdmin() {
         nama_lengkap: "", nik: "", no_hp: "", alamat: "", 
         jenis_kelamin: "laki-laki", tanggal_lahir: "", tempat_lahir: "" 
       })
-      fetchData()
+      fetchData(1, search) // Refresh kembali ke halaman 1
     } catch (error: any) {
       console.error("Error create pasien:", error)
-      const msg = error.response?.data?.message || "Gagal menambah pasien. Cek input Anda."
-      // Cek jika ada error validasi spesifik
+      const msg = error.response?.data?.message || "Gagal menambah pasien."
       if (error.response?.data?.errors) {
-         const firstError = Object.values(error.response.data.errors)[0]
+         const firstError = Object.values(error.response.data.errors)[0] as string
          toast.error(`Gagal: ${firstError}`)
       } else {
          toast.error(msg)
@@ -111,7 +148,7 @@ export default function DashboardAdmin() {
     }
   }
 
-  // --- DELETE PASIEN (BARU) ---
+  // --- DELETE PASIEN ---
   const confirmDelete = (id: string) => {
     setDeleteId(id)
     setOpenDeleteDialog(true)
@@ -124,7 +161,7 @@ export default function DashboardAdmin() {
       await api.delete(`/pasien/${deleteId}`)
       toast.success("Data pasien berhasil dihapus")
       setOpenDeleteDialog(false)
-      fetchData() // Refresh list
+      fetchData(page, search) // Refresh di halaman yang sama
     } catch (error) {
       console.error("Gagal hapus:", error)
       toast.error("Gagal menghapus data pasien")
@@ -138,16 +175,6 @@ export default function DashboardAdmin() {
     localStorage.clear()
     navigate("/login", { replace: true })
   }
-
-  // Filter Search
-  const filteredList = pasienList.filter(p => {
-    // Pengaman: Jika data null/undefined, ubah jadi string kosong "" agar tidak error
-    const nama = (p.nama_lengkap || "").toLowerCase();
-    const keyword = search.toLowerCase();
-
-    // Hanya cek nama, abaikan NIK
-    return nama.includes(keyword);
-  })
 
   return (
     <SidebarProvider>
@@ -191,7 +218,6 @@ export default function DashboardAdmin() {
                 List Pasien
               </CardTitle>
               
-              {/* MODAL TAMBAH PASIEN */}
               <Dialog open={openDialog} onOpenChange={setOpenDialog}>
                 <DialogTrigger asChild>
                   <Button className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
@@ -206,6 +232,7 @@ export default function DashboardAdmin() {
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleCreatePasien}>
+                    {/* ... Form input sama seperti sebelumnya ... */}
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
                         <Label>Nama Lengkap</Label>
@@ -232,14 +259,14 @@ export default function DashboardAdmin() {
                         </div>
                       </div>
                       <div className="grid gap-2">
-                        <Label>Jenis Kelamin</Label>
-                        <Select value={formData.jenis_kelamin} onValueChange={val => setFormData({...formData, jenis_kelamin: val})}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="laki-laki">Laki-laki</SelectItem>
-                            <SelectItem value="perempuan">Perempuan</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          <Label>Jenis Kelamin</Label>
+                          <Select value={formData.jenis_kelamin} onValueChange={val => setFormData({...formData, jenis_kelamin: val})}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="laki-laki">Laki-laki</SelectItem>
+                              <SelectItem value="perempuan">Perempuan</SelectItem>
+                            </SelectContent>
+                          </Select>
                       </div>
                       <div className="grid gap-2">
                         <Label>Alamat Lengkap</Label>
@@ -260,10 +287,10 @@ export default function DashboardAdmin() {
               <div className="mb-4 relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                 <Input 
-                  placeholder="Cari nama atau NIK..." 
+                  placeholder="Cari nama..." 
                   className="pl-10 h-10 bg-slate-50" 
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={handleSearchChange} // UPDATE: Pakai handler baru
                 />
               </div>
 
@@ -282,16 +309,20 @@ export default function DashboardAdmin() {
                   <TableBody>
                     {loading ? (
                       <TableRow><TableCell colSpan={6} className="text-center py-10">Memuat data...</TableCell></TableRow>
-                    ) : filteredList.length === 0 ? (
+                    ) : pasienList.length === 0 ? (
                       <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">Tidak ada data pasien.</TableCell></TableRow>
                     ) : (
-                      filteredList.map((pasien, idx) => (
+                      // UPDATE: Langsung map pasienList (karena sudah di-filter backend)
+                      pasienList.map((pasien, idx) => (
                         <TableRow 
                           key={pasien.id} 
                           className="cursor-pointer hover:bg-blue-50 transition-colors group"
                           onClick={() => navigate(`/admin/pasien/${pasien.id}`)}
                         >
-                          <TableCell className="text-center font-medium text-slate-600">{idx + 1}</TableCell>
+                          <TableCell className="text-center font-medium text-slate-600">
+                            {/* Hitung nomor urut berdasarkan halaman: (page-1) * 10 + index + 1 */}
+                            {meta ? (meta.from + idx) : idx + 1}
+                          </TableCell>
                           <TableCell>
                             <div className="font-semibold text-slate-800">{pasien.nama_lengkap}</div>
                             <div className="text-xs text-slate-500">NIK: {pasien.nik}</div>
@@ -300,13 +331,12 @@ export default function DashboardAdmin() {
                           <TableCell className="text-center">{pasien.gd_terakhir || "-"}</TableCell>
                           <TableCell className="text-center">{pasien.imt_terakhir || "-"}</TableCell>
                           <TableCell className="text-center">
-                            {/* TOMBOL DELETE (Dengan Stop Propagation) */}
                             <Button 
                               variant="ghost" 
                               size="icon" 
                               className="text-red-400 hover:text-red-600 hover:bg-red-50"
                               onClick={(e) => {
-                                e.stopPropagation() // <--- PENTING: Mencegah navigasi ke detail saat klik hapus
+                                e.stopPropagation()
                                 confirmDelete(pasien.id)
                               }}
                             >
@@ -319,6 +349,39 @@ export default function DashboardAdmin() {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* UPDATE: Bagian Pagination Control */}
+              {meta && meta.total > 0 && (
+                 <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-slate-500">
+                        Menampilkan {meta.from} sampai {meta.to} dari {meta.total} data
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            disabled={meta.current_page === 1}
+                            onClick={() => setPage(prev => prev - 1)}
+                        >
+                            <ChevronLeft className="h-4 w-4 mr-1" />
+                            Prev
+                        </Button>
+                        <div className="text-sm font-medium px-2">
+                            Halaman {meta.current_page} dari {meta.last_page}
+                        </div>
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            disabled={meta.current_page === meta.last_page}
+                            onClick={() => setPage(prev => prev + 1)}
+                        >
+                            Next
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                    </div>
+                 </div>
+              )}
+
             </CardContent>
           </Card>
 
@@ -328,18 +391,13 @@ export default function DashboardAdmin() {
               <DialogHeader>
                 <DialogTitle className="text-red-600">Hapus Data Pasien?</DialogTitle>
                 <DialogDescription>
-                  Tindakan ini tidak dapat dibatalkan. Data pasien beserta riwayat monitoring akan dihapus permanen.
+                  Tindakan ini tidak dapat dibatalkan.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpenDeleteDialog(false)}>Batal</Button>
-                <Button 
-                  variant="destructive" 
-                  onClick={handleDeletePasien} 
-                  disabled={loadingDelete}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  {loadingDelete ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Ya, Hapus Pasien"}
+                <Button variant="destructive" onClick={handleDeletePasien} disabled={loadingDelete}>
+                  {loadingDelete ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Ya, Hapus"}
                 </Button>
               </DialogFooter>
             </DialogContent>
